@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hệ Thống Quản Trị Nhân Sự & Chấm Công</title>
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS CDN (Xuất file Excel ngân hàng) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    /* Ẩn thanh cuộn nhưng vẫn cuộn được */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
+
+  <!-- TOAST THÔNG BÁO TỔNG DÙNG CHUNG -->
+  <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 hidden transition-all duration-300">
+    <div id="toastContent" class="px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold text-white flex items-center gap-2"></div>
+  </div>
+
+  <!-- MODAL XEM ẢNH SELFIE -->
+  <div id="imageModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 text-center">
+      <h3 class="font-bold text-gray-800 mb-2">Ảnh Chấm Công</h3>
+      <img id="modalImg" src="" alt="Selfie" class="w-full h-64 object-cover rounded-xl mb-4 bg-gray-100">
+      <button onclick="closeImageModal()" class="w-full py-2.5 bg-gray-200 text-gray-800 rounded-xl font-bold">Đóng</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MÀN HÌNH 1: ĐĂNG NHẬP ĐA DOANH NGHIỆP
+  ══════════════════════════════════════════════════════════ -->
+  <div id="viewLogin" class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white w-full max-w-md p-8 rounded-3xl shadow-xl border border-slate-200/60">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-emerald-500 text-white flex items-center justify-center rounded-2xl mx-auto text-2xl font-bold mb-3 shadow-lg shadow-emerald-500/30">AS</div>
+        <h1 class="text-2xl font-bold text-slate-900">Đăng Nhập Hệ Thống</h1>
+        <p class="text-sm text-slate-500 mt-1">Nền tảng Chấm công & Quản trị Lương SaaS</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Mã Doanh Nghiệp</label>
+          <input type="text" id="loginTenant" placeholder="Ví dụ: ASMART" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 uppercase font-semibold">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Số Điện Thoại</label>
+          <input type="tel" id="loginPhone" placeholder="0912345678" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Mã PIN</label>
+          <input type="password" id="loginPin" maxlength="6" placeholder="••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-center tracking-widest text-lg">
+        </div>
+        <button onclick="handleLoginSubmit()" id="btnLogin" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-emerald-600/30 transition-all">ĐĂNG NHẬP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MÀN HÌNH 2: ỨNG DỤNG CHÍNH (MOBILE & DESKTOP RESPONSIVE)
+  ══════════════════════════════════════════════════════════ -->
+  <div id="viewMain" class="hidden min-h-screen flex flex-col md:flex-row">
+    
+    <!-- SIDEBAR DÀNH CHO MÀN HÌNH MÁY TÍNH (DESKTOP LANDSCAPE) -->
+    <aside class="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 p-5 select-none">
+      <div class="flex items-center gap-3 mb-8">
+        <div class="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-bold text-lg">AS</div>
+        <div>
+          <h2 class="font-bold text-slate-800 leading-none" id="brandTitle">Hệ Thống</h2>
+          <span class="text-xs text-emerald-600 font-semibold" id="userRoleBadge">Nhân viên</span>
+        </div>
+      </div>
+
+      <nav class="space-y-1.5 flex-1" id="desktopNav">
+        <button onclick="switchTab('checkin')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-50 transition-all active-tab bg-emerald-50 text-emerald-700">📍 Chấm Công</button>
+        <button onclick="switchTab('live')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-50 transition-all">👥 Đang Làm Việc</button>
+        
+        <!-- Tab phân quyền Admin/Manager -->
+        <div id="adminNavGroup" class="hidden pt-4 mt-4 border-t border-slate-100 space-y-1.5">
+          <span class="px-4 text-[11px] font-bold uppercase tracking-wider text-slate-400">Quản Trị Chi Nhánh</span>
+          <button onclick="switchTab('admin_logs')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-50 transition-all">📋 Nhật Ký Điểm</button>
+          <button onclick="switchTab('admin_att')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-50 transition-all">📊 Chốt Công Tháng</button>
+          <button onclick="switchTab('admin_payroll')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-50 transition-all">💵 Bảng Lương Nháp</button>
+          <button onclick="switchTab('admin_config')" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-50 transition-all">⚙️ Cấu Hình Máy</button>
+        </div>
+      </nav>
+
+      <div class="pt-4 border-t border-slate-100">
+        <button onclick="logout()" class="w-full py-2.5 text-rose-600 hover:bg-rose-50 rounded-xl font-semibold text-sm transition-all">Đăng Xuất</button>
+      </div>
+    </aside>
+
+    <!-- NỘI DUNG CHÍNH (MAIN WORKSPACE) -->
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto no-scrollbar pb-24 md:pb-6">
+      
+      <!-- TOPBAR DÀNH CHO MOBILE -->
+      <header class="md:hidden bg-white px-5 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 z-30">
+        <div>
+          <h2 class="font-bold text-slate-900" id="mUserName">Xin chào</h2>
+          <p class="text-xs text-slate-400" id="mUserBranch">Chi nhánh</p>
+        </div>
+        <button onclick="logout()" class="text-xs font-bold text-rose-600 px-3 py-1.5 bg-rose-50 rounded-lg">Thoát</button>
+      </header>
+
+      <div class="p-4 md:p-8 max-w-7xl w-full mx-auto flex-1">
+        
+        <!-- ── TAB 1: MÀN HÌNH CHẤM CÔNG (NHÂN VIÊN) ── -->
+        <section id="tab_checkin" class="tab-content max-w-md mx-auto">
+          <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/80 text-center">
+            
+            <div id="gpsStatus" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 mb-6">
+              <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Đang kết nối GPS...
+            </div>
+
+            <!-- Video Camera Selfie Ẩn/Hiện -->
+            <div id="cameraWrap" class="hidden mb-4 overflow-hidden rounded-2xl border-2 border-emerald-500 relative aspect-square max-w-[240px] mx-auto bg-black">
+              <video id="selfieVideo" autoplay playsinline class="w-full h-full object-cover -scale-x-100"></video>
+              <canvas id="selfieCanvas" class="hidden"></canvas>
+            </div>
+
+            <!-- Nút Chấm Công To Một Chạm -->
+            <button onclick="executeCheckIn()" id="btnCheckIn" disabled class="w-full aspect-[4/3] max-h-48 bg-gradient-to-tr from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white rounded-3xl shadow-xl shadow-emerald-600/30 flex flex-col items-center justify-center gap-3 transition-all disabled:opacity-40 disabled:cursor-not-allowed mb-4">
+              <div class="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl">📍</div>
+              <div>
+                <span class="text-xl font-extrabold tracking-wide block">CHẤM CÔNG</span>
+                <span class="text-xs text-white/80 font-normal mt-0.5 block" id="btnCheckInSub">Nhấn để xác thực vị trí</span>
+              </div>
+            </button>
+
+            <p class="text-xs text-slate-400">Hệ thống đối soát Geofence & Chống giả lập vị trí tự động</p>
+          </div>
+        </section>
+
+        <!-- ── TAB 2: DANH SÁCH ĐANG LÀM VIỆC (LIVE DASHBOARD) ── -->
+        <section id="tab_live" class="tab-content hidden max-w-lg mx-auto">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-slate-800">Nhân sự đang làm việc</h3>
+            <button onclick="loadLiveStatus()" class="text-xs text-emerald-600 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg">↻ Tải lại</button>
+          </div>
+          <div id="liveStatusContainer" class="space-y-3"></div>
+        </section>
+
+        <!-- ── TAB 3: NHẬT KÝ ĐIỂM & ĐI TUYẾN (ADMIN/MANAGER) ── -->
+        <section id="tab_admin_logs" class="tab-content hidden">
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Ngày đối soát</label>
+                <input type="date" id="filterLogDate" class="w-full px-3 py-2 border rounded-xl text-sm font-semibold">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Chi nhánh</label>
+                <select id="filterLogBranch" class="w-full px-3 py-2 border rounded-xl text-sm font-semibold">
+                  <option value="Tất cả">Tất cả chi nhánh</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Loại hình</label>
+                <select id="filterLogType" class="w-full px-3 py-2 border rounded-xl text-sm font-semibold">
+                  <option value="Tất cả">Tất cả</option>
+                  <option value="Co_Dinh">Tại điểm</option>
+                  <option value="Ngoai_Diem">Đi tuyến / Ngoài điểm</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button onclick="loadAttendanceLogs()" class="w-full py-2.5 bg-slate-900 text-white font-bold rounded-xl text-sm">Lọc Dữ Liệu</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm" id="logsTable">
+                <thead class="bg-slate-50 text-slate-400 text-xs uppercase font-semibold border-b">
+                  <tr>
+                    <th class="p-3.5">Thời gian</th>
+                    <th class="p-3.5">Nhân viên</th>
+                    <th class="p-3.5">Chi nhánh</th>
+                    <th class="p-3.5">Địa điểm</th>
+                    <th class="p-3.5">Loại hình</th>
+                    <th class="p-3.5">Ảnh</th>
+                    <th class="p-3.5">Tọa độ</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700" id="logsTableBody">
+                  <tr><td colspan="7" class="p-4 text-center text-slate-400">Đang tải nhật ký...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── TAB 4: CHỐT CÔNG THÁNG & CHỈNH SỬA TRỰC TIẾP (ADMIN) ── -->
+        <section id="tab_admin_att" class="tab-content hidden">
+          <div class="flex flex-wrap gap-4 items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <input type="month" id="attMonthYear" class="px-4 py-2 border rounded-xl font-bold bg-white text-sm">
+              <button onclick="loadMonthlyAttendance()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm">Tải Bảng Công</button>
+            </div>
+            <p class="text-xs text-slate-400">* Nhấp đúp trực tiếp vào ô Công thực tế hoặc Giờ tăng ca để sửa</p>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm" id="attTable">
+                <thead class="bg-slate-50 text-slate-400 text-xs uppercase font-semibold border-b">
+                  <tr>
+                    <th class="p-3.5">Họ Tên</th>
+                    <th class="p-3.5">Chi Nhánh</th>
+                    <th class="p-3.5">Công Chuẩn</th>
+                    <th class="p-3.5 bg-emerald-50/50 text-emerald-700">Công Thực Tế</th>
+                    <th class="p-3.5 bg-blue-50/50 text-blue-700">Giờ Tăng Ca</th>
+                    <th class="p-3.5">Nghỉ Phép</th>
+                    <th class="p-3.5">Nghỉ Ko Lương</th>
+                    <th class="p-3.5">Ghi Chú</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100" id="attTableBody">
+                  <tr><td colspan="8" class="p-4 text-center text-slate-400">Chọn tháng và bấm Tải Bảng Công</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── TAB 5: BẢNG LƯƠNG NHÁP & DUYỆT LƯƠNG (ADMIN) ── -->
+        <section id="tab_admin_payroll" class="tab-content hidden">
+          <div class="flex flex-wrap gap-3 items-center justify-between mb-6">
+            <div class="flex items-center gap-2">
+              <input type="month" id="payrollMonthYear" class="px-3 py-2 border rounded-xl font-bold bg-white text-sm">
+              <button onclick="loadDraftPayroll()" class="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm">Tải Bảng Lương</button>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="exportBankExcel()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-600/20">📥 Xuất File Ngân Hàng</button>
+              <button onclick="promptApprovePayroll()" class="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md shadow-blue-600/20">✅ Duyệt Lương Chính Thức</button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm" id="payrollTable">
+                <thead class="bg-slate-50 text-slate-400 text-xs uppercase font-semibold border-b">
+                  <tr>
+                    <th class="p-3.5">Họ Tên</th>
+                    <th class="p-3.5">Chi Nhánh</th>
+                    <th class="p-3.5">Lương Thời Gian</th>
+                    <th class="p-3.5">Tăng Ca</th>
+                    <th class="p-3.5 bg-amber-50 text-amber-700">Thưởng Khác (Sửa)</th>
+                    <th class="p-3.5 bg-rose-50 text-rose-700">Phạt (Sửa)</th>
+                    <th class="p-3.5 font-bold">GROSS</th>
+                    <th class="p-3.5 text-rose-600 font-bold">LƯƠNG NET</th>
+                    <th class="p-3.5">Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100" id="payrollTableBody">
+                  <tr><td colspan="9" class="p-4 text-center text-slate-400">Chọn tháng và bấm Tải Bảng Lương</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── TAB 6: CẤU HÌNH THAM SỐ TOÀN CÔNG TY (ADMIN) ── -->
+        <section id="tab_admin_config" class="tab-content hidden max-w-2xl mx-auto">
+          <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+            <h3 class="text-lg font-bold text-slate-900 border-b pb-3">Cấu Hình Vận Hành & Tham Số Lương</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Giờ Tối Thiểu 1 Công</label>
+                <input type="number" id="cfgMinFull" class="w-full p-3 border rounded-xl text-sm font-bold">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Giờ Tối Thiểu Nửa Công</label>
+                <input type="number" id="cfgMinHalf" class="w-full p-3 border rounded-xl text-sm font-bold">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Bán Kính GPS Mặc Định (m)</label>
+                <input type="number" id="cfgRadius" class="w-full p-3 border rounded-xl text-sm font-bold">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Mã PIN Duyệt Lương</label>
+                <input type="text" id="cfgPayrollPin" class="w-full p-3 border rounded-xl text-sm font-bold tracking-widest text-center">
+              </div>
+            </div>
+
+            <div class="border-t pt-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-sm block">Yêu Cầu Chụp Ảnh Selfie</span>
+                  <span class="text-xs text-slate-400">Chụp và nén ảnh khuôn mặt khi nhấn chấm công</span>
+                </div>
+                <input type="checkbox" id="cfgEnableSelfie" class="w-5 h-5 accent-emerald-600 rounded">
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Google Drive Folder ID (Chứa ảnh)</label>
+                <input type="text" id="cfgDriveFolder" placeholder="Để trống nếu muốn tạo thư mục tự động" class="w-full p-3 border rounded-xl text-sm font-mono text-xs">
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Căn Cứ Trích Thu Công Đoàn</label>
+                <select id="cfgUnionBasis" class="w-full p-3 border rounded-xl text-sm font-bold">
+                  <option value="Thu_Nhap_Tru_BHXH">Toàn bộ thu nhập trừ BHXH</option>
+                  <option value="Luong_BHXH">Theo Lương Đóng BHXH</option>
+                  <option value="Luong_Co_Ban">Theo Lương Cơ Bản</option>
+                  <option value="Luong_Thoi_Gian">Theo Lương Thời Gian Thực Tế</option>
+                </select>
+              </div>
+            </div>
+
+            <button onclick="saveSystemConfig()" class="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl text-sm">LƯU THAY ĐỔI CẤU HÌNH</button>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- BOTTOM NAVIGATION CHO THIẾT BỊ DI ĐỘNG (MOBILE NAVIGATION) -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-2 z-40" id="mobileNav">
+      <button onclick="switchTab('checkin')" class="flex flex-col items-center gap-1 p-2 text-emerald-600 font-bold text-[11px]">
+        <span class="text-lg">📍</span> Chấm Công
+      </button>
+      <button onclick="switchTab('live')" class="flex flex-col items-center gap-1 p-2 text-slate-400 font-semibold text-[11px]">
+        <span class="text-lg">👥</span> Đang Làm
+      </button>
+      <button id="mBtnAdmin" onclick="switchTab('admin_logs')" class="hidden flex flex-col items-center gap-1 p-2 text-slate-400 font-semibold text-[11px]">
+        <span class="text-lg">⚡</span> Quản Trị
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       JAVASCRIPT ARCHITECTURE & CLIENT ENGINE
+  ══════════════════════════════════════════════════════════ -->
+  <script>
+    // CẤU HÌNH WEBAPP URL (Thay bằng URL triển khai Apps Script của bạn)
+    const BACKEND_URL = "https://script.google.com/macros/s/AKfycbz_REPLACE_WITH_YOUR_EXEC_ID/exec";
+
+    let CURRENT_USER = null;
+    let CACHED_GPS = null;
+    let GPS_WATCH_ID = null;
+    let DRAFT_PAYROLL_DATA = [];
+
+    // ==========================================
+    // 1. TOAST & NOTIFICATION SYSTEM
+    // ==========================================
+    function showToast(msg, isError = false) {
+      const t = document.getElementById("toast");
+      const c = document.getElementById("toastContent");
+      c.innerText = msg;
+      c.className = `px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-2 ${isError ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}`;
+      t.classList.remove("hidden");
+      setTimeout(() => t.classList.add("hidden"), 3500);
+    }
+
+    // ==========================================
+    // 2. NETWORK & API WRAPPER
+    // ==========================================
+    async function apiCall(action, payload = {}) {
+      try {
+        const res = await fetch(BACKEND_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action, payload })
+        });
+        const result = await res.json();
+        if (result.status === "error") throw new Error(result.message);
+        return result.data;
+      } catch (err) {
+        showToast(err.message || "Lỗi kết nối máy chủ!", true);
+        throw err;
+      }
+    }
+
+    // ==========================================
+    // 3. ĐĂNG NHẬP & PHÂN QUYỀN
+    // ==========================================
+    async function handleLoginSubmit() {
+      const tenant = document.getElementById("loginTenant").value.trim();
+      const phone = document.getElementById("loginPhone").value.trim();
+      const pin = document.getElementById("loginPin").value.trim();
+
+      if (!tenant || !phone || !pin) return showToast("Vui lòng nhập đầy đủ thông tin!", true);
+
+      const btn = document.getElementById("btnLogin");
+      btn.innerText = "Đang xác thực...";
+      btn.disabled = true;
+
+      try {
+        const user = await apiCall("login", { phone, pin, tenant });
+        CURRENT_USER = user;
+        localStorage.setItem("hrm_user", JSON.stringify(user));
+        initAppView();
+      } catch (err) {
+        btn.innerText = "ĐĂNG NHẬP";
+        btn.disabled = false;
+      }
+    }
+
+    function initAppView() {
+      document.getElementById("viewLogin").classList.add("hidden");
+      document.getElementById("viewMain").classList.remove("hidden");
+
+      // Cập nhật Header
+      document.getElementById("mUserName").innerText = CURRENT_USER.name;
+      document.getElementById("mUserBranch").innerText = CURRENT_USER.branch;
+      document.getElementById("userRoleBadge").innerText = CURRENT_USER.role.toUpperCase();
+
+      // Mở menu Admin nếu là admin hoặc manager
+      if (CURRENT_USER.role === "admin" || CURRENT_USER.role === "manager") {
+        document.getElementById("adminNavGroup").classList.remove("hidden");
+        document.getElementById("mBtnAdmin").classList.remove("hidden");
+      }
+
+      // Đặt mặc định tháng hiện tại
+      const now = new Date();
+      const mStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      document.getElementById("attMonthYear").value = mStr;
+      document.getElementById("payrollMonthYear").value = mStr;
+      document.getElementById("filterLogDate").value = now.toISOString().split('T')[0];
+
+      startGPS();
+      loadLiveStatus();
+    }
+
+    function logout() {
+      if (!confirm("Xác nhận đăng xuất khỏi thiết bị?")) return;
+      localStorage.removeItem("hrm_user");
+      location.reload();
+    }
+
+    // ==========================================
+    // 4. GPS & CAMERA SELFIE COMPRESSION
+    // ==========================================
+    function startGPS() {
+      if (!navigator.geolocation) return updateGPSStatus(false, "Thiết bị không hỗ trợ GPS");
+
+      GPS_WATCH_ID = navigator.geolocation.watchPosition(
+        pos => {
+          if (pos.coords.isMocked) {
+            CACHED_GPS = null;
+            return updateGPSStatus(false, "⚠️ Phát hiện GPS giả mạo!");
+          }
+          CACHED_GPS = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          };
+          updateGPSStatus(true, `GPS Sẵn Sàng (±${Math.round(pos.coords.accuracy)}m)`);
+          document.getElementById("btnCheckIn").disabled = false;
+        },
+        err => updateGPSStatus(false, "Không thể lấy tọa độ GPS"),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    function updateGPSStatus(ready, text) {
+      const el = document.getElementById("gpsStatus");
+      el.className = `inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${ready ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`;
+      el.innerHTML = `<span class="w-2 h-2 rounded-full ${ready ? 'bg-emerald-500' : 'bg-rose-500'}"></span> ${text}`;
+    }
+
+    // Khởi tạo Camera và Nén ảnh 20KB trên Canvas
+    async function captureCompressedSelfie() {
+      const video = document.getElementById("selfieVideo");
+      const canvas = document.getElementById("selfieCanvas");
+      const wrap = document.getElementById("cameraWrap");
+
+      wrap.classList.remove("hidden");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      video.srcObject = stream;
+
+      await new Promise(r => setTimeout(r, 1200)); // Chờ camera cân bằng sáng
+
+      canvas.width = 300;
+      canvas.height = 300;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, 300, 300);
+
+      const base64 = canvas.toDataURL("image/jpeg", 0.5); // Chất lượng 50% đạt kích thước ~20KB
+
+      // Tắt stream
+      stream.getTracks().forEach(track => track.stop());
+      wrap.classList.add("hidden");
+      return base64;
+    }
+
+    async function executeCheckIn() {
+      if (!CACHED_GPS) return showToast("GPS chưa sẵn sàng!", true);
+      const btn = document.getElementById("btnCheckIn");
+      btn.disabled = true;
+
+      try {
+        let imageBase64 = "";
+        try {
+          imageBase64 = await captureCompressedSelfie();
+        } catch (e) {
+          console.warn("Không thể bật camera selfie:", e);
+        }
+
+        const res = await apiCall("checkin", {
+          phone: CURRENT_USER.phone,
+          lat: CACHED_GPS.lat,
+          lng: CACHED_GPS.lng,
+          accuracy: CACHED_GPS.accuracy,
+          imageBase64: imageBase64,
+          isMocked: false
+        });
+
+        showToast(`✅ Chấm công thành công (${res.time}) - ${res.location}`);
+        loadLiveStatus();
+      } catch (err) {
+        // Lỗi đã được Toast trong apiCall
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ==========================================
+    // 5. LIVE WORKING STATUS
+    // ==========================================
+    async function loadLiveStatus() {
+      const box = document.getElementById("liveStatusContainer");
+      try {
+        const data = await apiCall("get_live_status", { userPhone: CURRENT_USER.phone });
+        box.innerHTML = data.groups.map(g => `
+          <div class="bg-white rounded-2xl p-4 border border-slate-200">
+            <div class="flex justify-between items-center mb-2">
+              <span class="font-bold text-slate-800 text-sm">${g.branch}</span>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">${g.workingCount}/${g.totalStaff} đang làm</span>
+            </div>
+            ${g.staffList.length > 0 ? `
+              <div class="pt-2 border-t border-dashed space-y-1">
+                ${g.staffList.map(s => `<div class="flex justify-between text-xs text-slate-600"><span>${s.name} (${s.position})</span><span class="font-semibold text-emerald-600">Vào ${s.checkinTime}</span></div>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+      } catch (err) {}
+    }
+
+    // ==========================================
+    // 6. NHẬT KÝ CHẤM CÔNG & XEM ẢNH
+    // ==========================================
+    async function loadAttendanceLogs() {
+      const filterDate = document.getElementById("filterLogDate").value;
+      const filterBranch = document.getElementById("filterLogBranch").value;
+      const filterType = document.getElementById("filterLogType").value;
+
+      const tbody = document.getElementById("logsTableBody");
+      tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Đang tải dữ liệu...</td></tr>`;
+
+      const logs = await apiCall("get_attendance_logs", {
+        userPhone: CURRENT_USER.phone,
+        filterDate: filterDate.split('-').reverse().join('/'),
+        filterBranch,
+        filterType
+      });
+
+      if (logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Không có bản ghi nào</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = logs.map(l => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3.5 font-mono text-xs">${l.time.split(' ')[1]}</td>
+          <td class="p-3.5 font-bold">${l.name}</td>
+          <td class="p-3.5 text-xs">${l.branch}</td>
+          <td class="p-3.5 text-xs">${l.location}</td>
+          <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${l.type === 'Co_Dinh' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}">${l.type === 'Co_Dinh' ? 'Tại điểm' : 'Đi tuyến'}</span></td>
+          <td class="p-3.5">
+            ${l.imageId ? `<button onclick="openImageModal('${l.imageId}')" class="text-xs text-blue-600 font-bold hover:underline">Xem ảnh</button>` : '<span class="text-xs text-slate-300">—</span>'}
+          </td>
+          <td class="p-3.5">
+            <a href="https://maps.google.com/?q=${l.lat},${l.lng}" target="_blank" class="text-xs text-emerald-600 font-bold hover:underline">Bản đồ</a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openImageModal(fileId) {
+      document.getElementById("modalImg").src = `https://lh3.googleusercontent.com/d/${fileId}`;
+      document.getElementById("imageModal").classList.remove("hidden");
+    }
+    function closeImageModal() {
+      document.getElementById("imageModal").classList.add("hidden");
+    }
+
+    // ==========================================
+    // 7. CHỐT CÔNG THÁNG & CHỈNH SỬA TRỰC TIẾP
+    // ==========================================
+    async function loadMonthlyAttendance() {
+      const val = document.getElementById("attMonthYear").value;
+      if (!val) return;
+      const [y, m] = val.split('-');
+      const monthYear = `${m}/${y}`;
+
+      const tbody = document.getElementById("attTableBody");
+      tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Đang tải...</td></tr>`;
+
+      const rows = await apiCall("get_monthly_attendance", {
+        monthYear,
+        branch: CURRENT_USER.role === 'admin' ? 'Tất cả' : CURRENT_USER.branch
+      });
+
+      tbody.innerHTML = rows.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3.5 font-bold">${r.Ho_Ten}</td>
+          <td class="p-3.5 text-xs">${r.Chi_Nhanh}</td>
+          <td class="p-3.5">${r.Cong_Chuan}</td>
+          <td class="p-3.5 bg-emerald-50/40 font-bold cursor-pointer hover:bg-emerald-100/50" onclick="editAttendanceCell(${r.rowIndex}, 'Cong_Thuc_Te', ${r.Cong_Thuc_Te})">${r.Cong_Thuc_Te} ✎</td>
+          <td class="p-3.5 bg-blue-50/40 font-bold cursor-pointer hover:bg-blue-100/50" onclick="editAttendanceCell(${r.rowIndex}, 'So_Gio_Tang_Ca_Da_Duyet', ${r.So_Gio_Tang_Ca_Da_Duyet})">${r.So_Gio_Tang_Ca_Da_Duyet} ✎</td>
+          <td class="p-3.5">${r.Nghi_Co_Phep}</td>
+          <td class="p-3.5">${r.Nghi_Khong_Luong}</td>
+          <td class="p-3.5 text-xs text-slate-400">${r.Ghi_Chu || ''}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function editAttendanceCell(rowIndex, fieldName, currentVal) {
+      const val = prompt(`Nhập giá trị mới cho [${fieldName}]:`, currentVal);
+      if (val === null || val.trim() === "" || isNaN(val)) return;
+
+      await apiCall("update_attendance_cell", {
+        userPhone: CURRENT_USER.phone,
+        rowIndex,
+        fieldName,
+        value: parseFloat(val)
+      });
+      showToast("✅ Đã cập nhật công!");
+      loadMonthlyAttendance();
+    }
+
+    // ==========================================
+    // 8. BẢNG LƯƠNG NHÁP & XUẤT FILE NGÂN HÀNG
+    // ==========================================
+    async function loadDraftPayroll() {
+      const val = document.getElementById("payrollMonthYear").value;
+      if (!val) return;
+      const [y, m] = val.split('-');
+      const monthYear = `${m}/${y}`;
+
+      const tbody = document.getElementById("payrollTableBody");
+      tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-slate-400">Đang tải...</td></tr>`;
+
+      const rows = await apiCall("get_draft_payroll", {
+        monthYear,
+        branch: CURRENT_USER.role === 'admin' ? 'Tất cả' : CURRENT_USER.branch
+      });
+      DRAFT_PAYROLL_DATA = rows;
+
+      tbody.innerHTML = rows.map(r => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3.5 font-bold">${r.Họ_Tên}</td>
+          <td class="p-3.5 text-xs">${r.Chi_Nhánh}</td>
+          <td class="p-3.5">${(r.Lương_Thời_Gian || 0).toLocaleString('vi-VN')}</td>
+          <td class="p-3.5">${(r.Tiền_Tăng_Ca || 0).toLocaleString('vi-VN')}</td>
+          <td class="p-3.5 bg-amber-50 font-bold cursor-pointer" onclick="editPayrollCell(${r.rowIndex}, 'Thưởng_Khác', ${r.Thưởng_Khác || 0})">${(r.Thưởng_Khác || 0).toLocaleString('vi-VN')} ✎</td>
+          <td class="p-3.5 bg-rose-50 font-bold cursor-pointer" onclick="editPayrollCell(${r.rowIndex}, 'Phạt_Vi_Phạm', ${r.Phạt_Vi_Phạm || 0})">${(r.Phạt_Vi_Phạm || 0).toLocaleString('vi-VN')} ✎</td>
+          <td class="p-3.5 font-bold text-slate-900">${(r.TỔNG_THU_NHẬP_GROSS || 0).toLocaleString('vi-VN')}</td>
+          <td class="p-3.5 font-bold text-rose-600">${(r.LƯƠNG_THỰC_NHẬN_NET || 0).toLocaleString('vi-VN')}</td>
+          <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${r.Trạng_Thái === 'Đã duyệt' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}">${r.Trạng_Thái}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function editPayrollCell(rowIndex, fieldName, currentVal) {
+      const val = prompt(`Nhập số tiền mới cho [${fieldName}]:`, currentVal);
+      if (val === null || val.trim() === "" || isNaN(val)) return;
+
+      await apiCall("update_payroll_cell", {
+        userPhone: CURRENT_USER.phone,
+        rowIndex,
+        fieldName,
+        value: parseFloat(val)
+      });
+      showToast("✅ Đã cập nhật khoản lương!");
+      loadDraftPayroll();
+    }
+
+    // Xuất file 4 cột chuẩn ngân hàng qua SheetJS
+    function exportBankExcel() {
+      if (DRAFT_PAYROLL_DATA.length === 0) return showToast("Không có dữ liệu để xuất file!", true);
+
+      const val = document.getElementById("payrollMonthYear").value;
+      const exportRows = DRAFT_PAYROLL_DATA.map(r => ({
+        "Chủ tài khoản": r.Họ_Tên,
+        "Số tài khoản": r.So_Tai_Khoan || r.SĐT,
+        "Số tiền": r.LƯƠNG_THỰC_NHẬN_NET,
+        "Nội dung chuyển tiền": `Thanh toan luong thang ${val} - ${r.Họ_Tên}`
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Chi_Luong");
+      XLSX.writeFile(wb, `Chi_Tra_Luong_${val}.xlsx`);
+    }
+
+    async function promptApprovePayroll() {
+      const val = document.getElementById("payrollMonthYear").value;
+      const [y, m] = val.split('-');
+      const monthYear = `${m}/${y}`;
+
+      const pin = prompt("Nhập mã PIN duyệt lương để công bố chính thức:");
+      if (!pin) return;
+
+      await apiCall("approve_payroll", {
+        userPhone: CURRENT_USER.phone,
+        monthYear,
+        pin
+      });
+      showToast("✅ Duyệt bảng lương thành công!");
+      loadDraftPayroll();
+    }
+
+    // ==========================================
+    // 9. CẤU HÌNH HỆ THỐNG
+    // ==========================================
+    async function loadSystemConfig() {
+      const cfg = await apiCall("get_system_config");
+      document.getElementById("cfgMinFull").value = cfg.minHoursFull;
+      document.getElementById("cfgMinHalf").value = cfg.minHoursHalf;
+      document.getElementById("cfgRadius").value = cfg.defaultRadius;
+      document.getElementById("cfgPayrollPin").value = cfg.payrollPin;
+      document.getElementById("cfgEnableSelfie").checked = cfg.enableSelfie;
+      document.getElementById("cfgDriveFolder").value = cfg.driveFolderId;
+      document.getElementById("cfgUnionBasis").value = cfg.unionBasis;
+    }
+
+    async function saveSystemConfig() {
+      await apiCall("save_system_config", {
+        minHoursFull: parseFloat(document.getElementById("cfgMinFull").value),
+        minHoursHalf: parseFloat(document.getElementById("cfgMinHalf").value),
+        defaultRadius: parseFloat(document.getElementById("cfgRadius").value),
+        payrollPin: document.getElementById("cfgPayrollPin").value.trim(),
+        enableSelfie: document.getElementById("cfgEnableSelfie").checked,
+        selfieStorage: "Xoa_Sau_48H",
+        driveFolderId: document.getElementById("cfgDriveFolder").value.trim(),
+        unionBasis: document.getElementById("cfgUnionBasis").value,
+        unionRateNLD: 0.01,
+        unionRateDN: 0.02
+      });
+      showToast("✅ Đã lưu cấu hình hệ thống!");
+    }
+
+    // ==========================================
+    // 10. ĐIỀU HƯỚNG TABS
+    // ==========================================
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      const target = document.getElementById(`tab_${tabId}`);
+      if (target) target.classList.remove("hidden");
+
+      if (tabId === 'admin_config') loadSystemConfig();
+      if (tabId === 'admin_logs') loadAttendanceLogs();
+    }
+
+    // Khởi chạy khi load trang
+    window.onload = () => {
+      const savedUser = localStorage.getItem("hrm_user");
+      if (savedUser) {
+        CURRENT_USER = JSON.parse(savedUser);
+        initAppView();
+      }
+    };
+  </script>
+</body>
+</html>
